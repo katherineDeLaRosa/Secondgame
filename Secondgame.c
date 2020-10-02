@@ -61,9 +61,6 @@ const unsigned char metasprite[]={
         8,      0,      (0xba)+1,   2, 
         8,      8,      (0xba)+3,   2, 
         128};
-
-
-
         
 DEF_METASPRITE_2x2(playerRStand, 0xd8, 0);
 DEF_METASPRITE_2x2(playerRRun1, 0xdc, 0);
@@ -91,20 +88,17 @@ const unsigned char* const playerRunSeq[16] = {
   playerRRun1, playerRRun2, playerRRun3, 
   playerRRun1, playerRRun2,
 };
-	// actor index
 
-
-
-
+int disc = 0;
 
 /*{pal:"nes",layout:"nes"}*/
 char PALETTE[32] = { 
-  0x03,	// screen color // 0x15 for ground color
+  0x21,	// screen color // 0x15 for ground color
 
-  0x11,0x30,0x27,0x00,	// background palette 0
-  0x1C,0x20,0x2C,0x00,	// background palette 1
-  0x00,0x10,0x20,0x00,	// background palette 2
-  0x16,0x35,0x26,0x00,   // background palette 3
+  0x09,0x09,0x27,0x0d,	// background palette 0
+  0x09,0x09,0x27,0x0d,	// background palette 1
+  0x09,0x09,0x27,0x0d,	// background palette 2
+  0x09,0x09,0x27,0x0d,   // background palette 3
 
   0x04,0x10,0x1A,0x00,	// sprite palette 0 haircolor,skin tone, shirt and shoes
   0x00,0x17,0x25,0x00,	// sprite palette 1
@@ -178,11 +172,26 @@ AE(1,1,1,1),AE(1,1,1,1),AE(1,1,1,1),AE(1,1,1,1), AE(1,1,1,1),AE(1,1,1,1),AE(1,1,
 
 const unsigned char Palette_Table[16]={ 
   0x07,
-  0x09,0x09,0xa6,0x08,
-  0x09,0x09,0xa6,0x08,
-  0x09,0x09,0xa6,0xa6,
-  0x09,0x09,0xa6
+  0x09,0x09,0x29,0x09,
+  0x09,0x09,0x29,0x02,
+  0x09,0x08,0x29,0x09,
+  0x09,0x09,0x29
 };
+
+void setup(){
+  PALETTE[0] = 0x21;
+  pal_all(PALETTE);
+}
+// setup PPU and tables
+void setup_graphics() {
+  // clear sprites
+  
+  // clear sprites
+  oam_hide_rest(0);
+  // set palette colors
+  pal_all(PALETTE);
+} // setup_graphics
+
 
 // put 8x8 grid of palette entries into the PPU
 void setup_attrib_table() {
@@ -197,12 +206,41 @@ void setup_palette() {
     pal_col(i, Palette_Table[i]);
 }
 
+void titleSound() {
+  famitone_init(after_the_rain_music_data);
+  sfx_init(demo_sounds);
+  nmi_set_callback(famitone_update);
+   sfx_play(0,1);
+
+}
+
+void gameSound() {
+  famitone_init(danger_streets_music_data);
+  sfx_init(demo_sounds);
+  nmi_set_callback(famitone_update);
+   sfx_play(0,1);
+
+}
+
+void fade(){
+    byte vb;
+  for (vb=2; vb<=4; vb++) {
+    // set virtual bright value
+    pal_bright(vb);
+    // wait for 4/60 sec
+    ppu_wait_frame();
+    ppu_wait_frame();
+    ppu_wait_frame();
+    ppu_wait_frame();
+  }
+}
 void win_screen (){
   vrambuf_clear();
-    ppu_off();
+  
+  ppu_off();
   oam_clear();
-  //need to get rid of sprites
-  //both of them
+  setup_graphics();
+  pal_col(0,0x02);
   vram_adr(0x2000);
   vram_fill(0, 32*28);
   vram_adr(0x0);
@@ -221,6 +259,7 @@ void win_screen (){
 void doesplayerhitCPU(userx, usery, cpux, cpuy){
   if(abs(userx - cpux) < 8){
     if(abs(usery - cpuy) < 8){
+      music_stop();
       sfx_play(SND_HIT,0);
        win_screen ();
       
@@ -238,50 +277,9 @@ void clrscr() {
   ppu_on_bg();
 }
 
-
-
-void play_round() {
-  ppu_off();
-  setup_attrib_table();
-  setup_palette();
-  clrscr();
-  draw_playfield();
-  while (1) {
-  }
-}
-
-
-
-
-void play_game() {
-  play_round();
-}
-
-
-
-
-
-
-// setup PPU and tables
-void setup_graphics() {
-  // clear sprites
-  
-  // clear sprites
-  oam_hide_rest(0);
-  // set palette colors
-  pal_all(PALETTE);
-} // setup_graphics
-void setup(){
-  PALETTE[0] = 0x7;
-  pal_all(PALETTE);
-}
-
-
-
-
-
-
 void title_screen(){
+  titleSound();
+  music_play(0);
   vram_adr(NTADR_A(8,5));
   vram_write("Lets play tag!!!", 16);
   
@@ -291,6 +289,8 @@ void title_screen(){
   while(1){
     if(pad_trigger(0)&PAD_START) break; 
   }
+  music_stop();
+  sfx_play(2,2);
   ppu_off();
 } // title screen
 
@@ -313,12 +313,24 @@ sbyte actor2_dx[NUM_ACTORS2];
 sbyte actor2_dy[NUM_ACTORS2];
 
 
+void gametext(){
+  vram_adr(NTADR_A(8,5));
+  vram_write("                ", 16);
+  
+  vram_adr(NTADR_A(6,22));	
+  vram_write("                    ", 20);  	
+  //setup_graphics();
+  setup();
+  // print instructions
+  vram_adr(NTADR_A(12,3));
+  vram_write("Use \x1c\x1d\x1e\x1f", 8);
+    vram_adr(NTADR_A(7,5));
+  vram_write("To tag your friend!", 19);
+}
 
-
-
-
-
-
+void CPUrun(){
+  
+}
 
 void game(){
   
@@ -327,19 +339,12 @@ void game(){
   char oam_id;	// sprite ID
   char pad;
   ppu_off();
-  vram_adr(NTADR_A(8,5));
-  vram_write("                ", 16);
-  
-  vram_adr(NTADR_A(6,22));	
-  vram_write("                    ", 20);  	
-  
-  // print instructions
-  vram_adr(NTADR_A(6,3));
-  vram_write("\x1c\x1d\x1e\x1f tag your friend", 20);
-  
+  //clrscr();
+  gametext();
 
   // setup graphics
-  setup(); 
+  gameSound();
+  music_play(0);
 	
   // initialize actors with random values
   for(i=0;i<NUM_ACTORS;i++) {
@@ -357,8 +362,10 @@ void game(){
     actor2_dy[i] = (rand() & 7) - 3;
   }
   ppu_on_all();
+  fade();
   setup_palette();
   draw_playfield();
+
   while(1){
     
     // this moves the player controlled sprite
@@ -366,7 +373,7 @@ void game(){
     for(i=0; i <2;i++){
     	pad = pad_poll(i);
         doesplayerhitCPU( actor_x[i],actor_y[i],actor2_x[i],actor2_y[i]);
-      if (pad&PAD_LEFT && actor_x[i]>15) {
+      if (pad&PAD_LEFT && actor_x[i]>15) {  
       actor_dx[i]=-2;     
       }
       else if (pad&PAD_RIGHT && actor_x[i]<228) actor_dx[i]=2;
@@ -390,12 +397,14 @@ void game(){
     // create a for loop for the cpu controlled sprite
     for (i=0; i<NUM_ACTORS2-1; i++) { // get the total number of actors and sub one less than
       				     // total. this will show one less characters
+      byte runseq2 = actor2_x[i] & 7;
       oam_id = oam_meta_spr(actor2_x[i], actor2_y[i], oam_id, metasprite);
       actor2_x[i] += actor2_dx[i];     
       actor2_y[i] += actor2_dy[i];
       if(actor2_x[i] >= 228){actor2_dx[i]=-2;} // if we go too far right go left
       if(actor2_x[i] == 10 ){actor2_dx[i]=6;} // if we go too far left go right
 
+//#link "music_aftertherain.s"
       if(actor2_y[i] >= 200){actor2_dy[i]=-5;} // if we go too far down go up
       if(actor2_y[i] == 10 ){actor2_dy[i]=2;}
     }    
@@ -409,43 +418,24 @@ void game(){
 }
 
 
-
-
-
-
-void setup_sounds() {
-  famitone_init(danger_streets_music_data);
-  sfx_init(demo_sounds);
-  nmi_set_callback(famitone_update);
-   sfx_play(0,1);
-
-}
-
-
-
-
-
-
-
 void main(void)
 {  
-  
-  pal_col(0,0x02);	// set screen to dark blue
-  pal_col(1,0x14);	// fuchsia
-  pal_col(2,0x20);	// grey
-  pal_col(3,0x30);	// white
-
+  int gameover;
+  gameover = 0;
+     
   setup_graphics();
-  setup_sounds();
-  music_play(0);
+  pal_col(0,0x02);
+  //setup_sounds();
   
-  // draw message  
+  // draw message 
+  fade();
   title_screen();
   vrambuf_clear();
   set_vram_update(updbuf);
   // infinite loop
   while(1) {    
-
+    
     game();
-  }
+   }
 }
+
