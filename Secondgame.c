@@ -196,28 +196,20 @@ void setup_palette() {
   for (i=0; i<16; i++)
     pal_col(i, Palette_Table[i]);
 }
-void end_screen(){
-  ppu_off();
-  oam_clear();
-  vrambuf_clear();
-  vram_adr(NTADR_A(5,14));
-  vram_write("You tagged your friend!", 24);
-  ppu_on_all();
-  while(1){
-  }
-  ppu_off();
-}
+
 void win_screen (){
   vrambuf_clear();
     ppu_off();
-  
+  oam_clear();
+  //need to get rid of sprites
+  //both of them
   vram_adr(0x2000);
   vram_fill(0, 32*28);
   vram_adr(0x0);
   // write text to name table
-  vram_adr(NTADR_A(5,14));		// set address
-  vram_write("You tagged your friend", 23);
-    vram_adr(NTADR_A(13,16));		// set address
+  vram_adr(NTADR_A(5,12));		// set address
+  vram_write("You tagged your friend!", 23);
+    vram_adr(NTADR_A(13,15));		// set address
   vram_write("You Win!", 8);// write bytes to video RAM
 
   // enable PPU rendering (turn on screen)
@@ -329,6 +321,8 @@ sbyte actor2_dy[NUM_ACTORS2];
 
 
 void game(){
+  
+  
   char i;
   char oam_id;	// sprite ID
   char pad;
@@ -435,9 +429,15 @@ void setup_sounds() {
 
 void main(void)
 {  
+  
+  pal_col(0,0x02);	// set screen to dark blue
+  pal_col(1,0x14);	// fuchsia
+  pal_col(2,0x20);	// grey
+  pal_col(3,0x30);	// white
+
   setup_graphics();
   setup_sounds();
-  music_play(20);
+  music_play(0);
   
   // draw message  
   title_screen();
@@ -445,6 +445,7 @@ void main(void)
   set_vram_update(updbuf);
   // infinite loop
   while(1) {    
+
     game();
   }
 }
